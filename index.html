@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qwintax</title>
+<style>
+:root{
+  --navy-900:#0F1E3D; --navy-800:#162A52;
+  --blue-600:#2E5AAC; --blue-500:#3D6FC9; --blue-bg:#E8EFFC;
+  --bg:#F5F7FA; --card:#FFFFFF; --border:#E3E7EE;
+  --text-900:#16202E; --text-600:#5B6472; --text-400:#98A1AD;
+  --slate-bg:#EEF1F5; --slate-fg:#64707D;
+  --amber-bg:#FDF3DC; --amber-fg:#9A6B12;
+  --green-bg:#E4F5EC; --green-fg:#17794F;
+  --red-bg:#FBDCDC; --red-fg:#A33333;
+  --radius:14px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--text-900);}
+button{font-family:inherit;cursor:pointer;border:none;}
+.hidden{display:none !important;}
+.app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);}
+.topbar{padding:14px 16px;text-align:center;font-size:13px;font-weight:700;color:var(--text-600);background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;}
+.content{padding:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--text-600);margin-bottom:5px;}
+.field input,.field textarea,.field select{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#fff;}
+.field textarea{min-height:90px;resize:vertical;}
+.btn{width:100%;background:var(--navy-900);color:#fff;padding:12px;border-radius:10px;font-weight:700;font-size:14px;}
+.btn.blue{background:var(--blue-500);}
+.btn.ghost{background:var(--slate-bg);color:var(--text-900);}
+.btn.danger{background:var(--red-bg);color:var(--red-fg);}
+.btn.sm{padding:8px;font-size:12px;}
+.role-toggle{display:flex;background:var(--slate-bg);border-radius:11px;padding:3px;margin-bottom:14px;}
+.role-toggle button{flex:1;padding:9px;border-radius:8px;font-weight:700;font-size:13px;color:var(--text-600);background:transparent;}
+.role-toggle button.active{background:#fff;color:var(--navy-900);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;display:inline-block;}
+.pill.green{background:var(--green-bg);color:var(--green-fg);}
+.pill.amber{background:var(--amber-bg);color:var(--amber-fg);}
+.pill.red{background:var(--red-bg);color:var(--red-fg);}
+.pill.slate{background:var(--slate-bg);color:var(--slate-fg);}
+.lifecycle{display:flex;justify-content:space-between;margin:10px 0;}
+.lc{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;}
+.lc-dot{width:24px;height:24px;border-radius:50%;background:var(--slate-bg);color:var(--text-400);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;}
+.lc.done .lc-dot{background:var(--navy-900);color:#fff;}
+.lc.current .lc-dot{background:var(--blue-500);color:#fff;}
+.lc-name{font-size:8.5px;color:var(--text-400);text-align:center;}
+.lc.current .lc-name{color:var(--blue-600);font-weight:700;}
+.list-item{padding:11px 0;border-top:1px solid var(--border);}
+.list-item:first-child{border-top:none;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy-900);color:#fff;padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;z-index:999;}
+.empty{text-align:center;padding:30px 10px;color:var(--text-400);font-size:13px;}
+.diff-add{background:#D9F3E3;color:#147A44;}
+.diff-del{background:#FBDCDC;color:#A33;text-decoration:line-through;}
+.section-label{font-size:11px;font-weight:800;color:var(--text-400);margin:14px 0 8px;}
+.back-btn{background:none;border:none;font-size:16px;color:var(--text-600);padding:4px;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="topbar">Qwintax</div>
+  <div class="content" id="content">
+    <div class="empty">جارٍ التحميل...</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, getDoc, getDocs, addDoc, updateDoc,
+  collection, query, where, serverTimestamp, orderBy
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCopKSRCznpboXKfHj01RE0aO2mOlcycHo",
+  authDomain: "qwintax-founder.firebaseapp.com",
+  projectId: "qwintax-founder",
+  storageBucket: "qwintax-founder.firebasestorage.app",
+  messagingSenderId: "403126503863",
+  appId: "1:403126503863:web:9d9cf2dd8e65021d378032",
+  measurementId: "G-7BNH41CLM9"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+const STAGES = [
+  {key:'topic_selection', label:'الموضوع'},
+  {key:'lit_review', label:'مراجعة أدبية'},
+  {key:'methodology', label:'المنهجية'},
+  {key:'analysis_results', label:'التحليل والنتائج'},
+  {key:'submission', label:'التسليم'}
+];
+function stageIdx(k){ return STAGES.findIndex(s=>s.key===k); }
+
+let currentUser = null;
+let profile = null;
+let myRoom = null;
+let selectedStudentRoom = null;
+
+const contentEl = document.getElementById('content');
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+function esc(s){ const d=document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+function fmtDate(ts){
+  if(!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('ar') + ' · ' + d.toLocaleTimeString('ar',{hour:'2-digit',minute:'2-digit'});
+}
+function statusLabel(s){ return {draft:'مسودة',reviewed:'تمت المراجعة',approved:'معتمدة',rejected:'مرفوضة'}[s]||s; }
+function statusClass(s){ return {draft:'slate',reviewed:'amber',approved:'green',rejected:'red'}[s]||'slate'; }
+
+let authRole = 'student';
+function renderAuth(){
+  contentEl.innerHTML = `
+    <div class="card">
+      <div class="role-toggle">
+        <button id="rStu" class="${authRole==='student'?'active':''}">طالب</button>
+        <button id="rSup" class="${authRole==='supervisor'?'active':''}">مشرف</button>
+      </div>
+      <div class="field"><label>الاسم الكامل</label><input id="fName" placeholder="مثال: أروى محمد"></div>
+      <div class="field"><label>البريد الإلكتروني</label><input id="fEmail" type="email" placeholder="name@example.com"></div>
+      <div class="field"><label>كلمة المرور</label><input id="fPass" type="password" placeholder="8 أحرف على الأقل"></div>
+      ${authRole==='student' ? `<div class="field"><label>بريد المشرف (اختياري)</label><input id="fSupEmail" type="email" placeholder="supervisor@example.com"></div>` : ''}
+      <button class="btn" id="btnSignup">إنشاء حساب</button>
+      <div style="text-align:center;margin:10px 0;font-size:12px;color:var(--text-400);">— أو —</div>
+      <button class="btn ghost" id="btnLogin">تسجيل الدخول (لديك حساب)</button>
+      <div id="authMsg" style="text-align:center;font-size:12px;color:var(--red-fg);margin-top:10px;"></div>
+    </div>
+  `;
+  document.getElementById('rStu').onclick = ()=>{ authRole='student'; renderAuth(); };
+  document.getElementById('rSup').onclick = ()=>{ authRole='supervisor'; renderAuth(); };
+
+  document.getElementById('btnSignup').onclick = async ()=>{
+    const name = document.getElementById('fName').value.trim();
+    const email = document.getElementById('fEmail').value.trim();
+    const pass = document.getElementById('fPass').value;
+    const supEmail = authRole==='student' ? document.getElementById('fSupEmail')?.value.trim() : '';
+    const msgEl = document.getElementById('authMsg');
+    if(!name||!email||!pass){ msgEl.textContent='عبّي كل الحقول المطلوبة'; return; }
+    try{
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await setDoc(doc(db,'users',cred.user.uid), {
+        name, email, role: authRole, createdAt: serverTimestamp()
+      });
+      if(authRole==='student'){
+        const roomRef = await addDoc(collection(db,'rooms'), {
+          studentId: cred.user.uid, studentName: name,
+          supervisorEmail: supEmail || null, supervisorId: null,
+          status:'active', stage:'topic_selection', createdAt: serverTimestamp()
+        });
+        if(supEmail){
+          const q = query(collection(db,'users'), where('email','==',supEmail), where('role','==','supervisor'));
+          const snap = await getDocs(q);
+          if(!snap.empty){
+            await updateDoc(doc(db,'rooms',roomRef.id), { supervisorId: snap.docs[0].id });
+          }
+        }
+      }
+      toast('تم إنشاء الحساب بنجاح');
+    }catch(e){
+      msgEl.textContent = translateError(e.code);
+    }
+  };
+
+  document.getElementById('btnLogin').onclick = async ()=>{
+    const email = document.getElementById('fEmail').value.trim();
+    const pass = document.getElementById('fPass').value;
+    const msgEl = document.getElementById('authMsg');
+    if(!email||!pass){ msgEl.textContent='اكتب البريد وكلمة المرور'; return; }
+    try{
+      await signInWithEmailAndPassword(auth, email, pass);
+    }catch(e){
+      msgEl.textContent = translateError(e.code);
+    }
+  };
+}
+function translateError(code){
+  const map = {
+    'auth/email-already-in-use':'هذا البريد مستخدم من قبل — جرّب تسجيل الدخول',
+    'auth/invalid-email':'صيغة البريد غير صحيحة',
+    'auth/weak-password':'كلمة المرور ضعيفة جدًا (8 أحرف على الأقل)',
+    'auth/user-not-found':'ما فيه حساب بهذا البريد',
+    'auth/wrong-password':'كلمة المرور غير صحيحة',
+    'auth/invalid-credential':'البريد أو كلمة المرور غير صحيحة'
+  };
+  return map[code] || ('صار خطأ: ' + code);
+}
+
+async function loadMyRoom(){
+  const q = query(collection(db,'rooms'), where('studentId','==',currentUser.uid));
+  const snap = await getDocs(q);
+  if(!snap.empty){
+    const d = snap.docs[0];
+    myRoom = { id:d.id, ...d.data() };
+  } else {
+    myRoom = null;
+  }
+}
+
+async function renderStudentHome(){
+  await loadMyRoom();
+  if(!myRoom){ contentEl.innerHTML = `<div class="empty">تعذّر إيجاد غرفتك</div>`; return; }
+
+  const sIdx = stageIdx(myRoom.stage);
+  const vQ = query(collection(db,'versions'), where('roomId','==',myRoom.id), orderBy('uploadedAt','desc'));
+  const vSnap = await getDocs(vQ);
+  const versions = vSnap.docs.map(d=>({id:d.id, ...d.data()}));
+  const last = versions[0];
+
+  contentEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <div style="font-size:18px;font-weight:800;">أهلًا، ${esc(profile.name.split(' ')[0])}</div>
+        <div style="font-size:11.5px;color:var(--text-600);">${myRoom.supervisorId ? 'مرتبط بمشرفك' : (myRoom.supervisorEmail? 'بانتظار تسجيل مشرفك':'ما ربطت مشرف بعد')}</div>
+      </div>
+      <button class="back-btn" id="logoutBtn" title="خروج">⎋</button>
+    </div>
+
+    ${!myRoom.supervisorEmail ? `
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">اربط مشرفك</div>
+      <div class="field"><input id="linkEmail" placeholder="بريد المشرف"></div>
+      <button class="btn blue sm" id="linkBtn">ربط</button>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">مسار البحث</div>
+      <div class="lifecycle">
+        ${STAGES.map((s,i)=>`
+          <div class="lc ${i<sIdx?'done':(i===sIdx?'current':'')}">
+            <div class="lc-dot">${i<sIdx?'✓':i+1}</div>
+            <div class="lc-name">${s.label}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">آخر نسخة</div>
+      ${last ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;font-weight:700;">${esc(last.title)}</div>
+          <span class="pill ${statusClass(last.status)}">${statusLabel(last.status)}</span>
+        </div>
+        <div style="font-size:10.5px;color:var(--text-400);margin-top:4px;">${fmtDate(last.uploadedAt)}</div>
+      ` : `<div class="empty" style="padding:14px 0;">لسه ما رفعت نسخة</div>`}
+      <button class="btn" style="margin-top:12px;" id="openUpload">⬆ رفع نسخة جديدة</button>
+    </div>
+
+    ${versions.length>1 ? `
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">كل النسخ (اضغط للمقارنة مع آخر نسخة)</div>
+      ${versions.map(v=>`
+        <div class="list-item" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" data-diff="${v.id}">
+          <div>
+            <div style="font-size:12.5px;font-weight:600;">${esc(v.title)}</div>
+            <div style="font-size:10px;color:var(--text-400);">${fmtDate(v.uploadedAt)}</div>
+          </div>
+          <span class="pill ${statusClass(v.status)}">${statusLabel(v.status)}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    <div id="uploadModalHost"></div>
+    <div id="diffHost"></div>
+  `;
+
+  document.getElementById('logoutBtn').onclick = ()=> signOut(auth);
+  const linkBtn = document.getElementById('linkBtn');
+  if(linkBtn) linkBtn.onclick = async ()=>{
+    const email = document.getElementById('linkEmail').value.trim();
+    if(!email) return;
+    await updateDoc(doc(db,'rooms',myRoom.id), { supervisorEmail: email });
+    const q = query(collection(db,'users'), where('email','==',email), where('role','==','supervisor'));
+    const snap = await getDocs(q);
+    if(!snap.empty){ await updateDoc(doc(db,'rooms',myRoom.id), { supervisorId: snap.docs[0].id }); }
+    toast('تم إرسال طلب الربط');
+    renderStudentHome();
+  };
+  document.getElementById('openUpload').onclick = showUploadForm;
+
+  document.querySelectorAll('[data-diff]').forEach(el=>{
+    el.onclick = ()=> showDiff(el.getAttribute('data-diff'), last?.id);
+  });
+}
+
+function showUploadForm(){
+  const host = document.getElementById('uploadModalHost');
+  host.innerHTML = `
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">رفع نسخة جديدة</div>
+      <div class="field"><label>عنوان النسخة</label><input id="upTitle" placeholder="مثال: المنهجية — الإصدار 1"></div>
+      <div class="field"><label>محتوى النص</label><textarea id="upContent" placeholder="الصق نص الفصل هنا..."></textarea></div>
+      <button class="btn blue" id="upSubmit">رفع</button>
+    </div>
+  `;
+  document.getElementById('upSubmit').onclick = async ()=>{
+    const title = document.getElementById('upTitle').value.trim();
+    const contentTxt = document.getElementById('upContent').value.trim();
+    if(!title){ toast('اكتب عنوان النسخة'); return; }
+    await addDoc(collection(db,'versions'), {
+      roomId: myRoom.id, title, content: contentTxt,
+      uploadedBy: currentUser.uid, status:'draft', uploadedAt: serverTimestamp()
+    });
+    toast('تم رفع النسخة');
+    renderStudentHome();
+  };
+}
+
+function wordDiff(a,b){
+  a=(a||'').split(/\s+/).filter(Boolean); b=(b||'').split(/\s+/).filter(Boolean);
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=m-1;i>=0;i--)for(let j=n-1;j>=0;j--)
+    dp[i][j]= a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j],dp[i][j+1]);
+  let i=0,j=0; const out=[];
+  while(i<m&&j<n){
+    if(a[i]===b[j]){out.push({t:'same',w:a[i]});i++;j++;}
+    else if(dp[i+1][j]>=dp[i][j+1]){out.push({t:'del',w:a[i]});i++;}
+    else {out.push({t:'add',w:b[j]});j++;}
+  }
+  while(i<m){out.push({t:'del',w:a[i]});i++;}
+  while(j<n){out.push({t:'add',w:b[j]});j++;}
+  return out;
+}
+async function showDiff(oldId, newId){
+  if(!newId || oldId===newId) return;
+  const oldSnap = await getDoc(doc(db,'versions',oldId));
+  const newSnap = await getDoc(doc(db,'versions',newId));
+  const oldV = oldSnap.data(), newV = newSnap.data();
+  const diff = wordDiff(oldV.content, newV.content);
+  document.getElementById('diffHost').innerHTML = `
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">مقارنة: ${esc(oldV.title)} ← ${esc(newV.title)}</div>
+      <div style="font-size:13px;line-height:2;background:var(--slate-bg);border-radius:10px;padding:12px;">
+        ${diff.map(d=> d.t==='same' ? esc(d.w)+' ' : d.t==='del' ? `<span class="diff-del">${esc(d.w)}</span> ` : `<span class="diff-add">${esc(d.w)}</span> `).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('diffHost').scrollIntoView({behavior:'smooth'});
+}
+
+async function renderSupervisorHome(){
+  const q = query(collection(db,'rooms'), where('supervisorId','==',currentUser.uid));
+  const snap = await getDocs(q);
+  const rooms = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+  contentEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:18px;font-weight:800;">أهلًا، ${esc(profile.name.split(' ')[0])}</div>
+      <button class="back-btn" id="logoutBtn">⎋</button>
+    </div>
+    <div class="section-label" style="margin-top:0;">طلابك (${rooms.length})</div>
+    ${rooms.length===0 ? `<div class="empty">ما عندك طلاب مرتبطين بعد</div>` :
+      rooms.map(r=>{
+        const sIdx = stageIdx(r.stage);
+        return `<div class="card" data-room="${r.id}" style="cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:13px;font-weight:700;">${esc(r.studentName)}</div>
+            <span class="pill slate">${STAGES[sIdx]?.label||''}</span>
+          </div>
+        </div>`;
+      }).join('')
+    }
+  `;
+  document.getElementById('logoutBtn').onclick = ()=> signOut(auth);
+  document.querySelectorAll('[data-room]').forEach(el=>{
+    el.onclick = ()=>{ selectedStudentRoom = rooms.find(r=>r.id===el.getAttribute('data-room')); renderSupervisorReview(); };
+  });
+}
+
+async function renderSupervisorReview(){
+  const r = selectedStudentRoom;
+  const vQ = query(collection(db,'versions'), where('roomId','==',r.id), orderBy('uploadedAt','desc'));
+  const vSnap = await getDocs(vQ);
+  const versions = vSnap.docs.map(d=>({id:d.id, ...d.data()}));
+
+  contentEl.innerHTML = `
+    <button class="btn ghost sm" id="backBtn" style="width:auto;padding:8px 14px;margin-bottom:12px;">‹ رجوع</button>
+    <div class="card">
+      <div style="font-size:15px;font-weight:800;">${esc(r.studentName)}</div>
+      <div style="font-size:11px;color:var(--text-600);">المرحلة: ${STAGES[stageIdx(r.stage)]?.label}</div>
+    </div>
+    <div class="section-label">النسخ</div>
+    ${versions.length===0 ? `<div class="empty">ما رفع أي نسخة بعد</div>` :
+      versions.map(v=>`
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;">
+            <div style="font-size:13px;font-weight:700;">${esc(v.title)}</div>
+            <span class="pill ${statusClass(v.status)}">${statusLabel(v.status)}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-600);margin-top:8px;max-height:80px;overflow:hidden;">${esc(v.content).slice(0,200)}</div>
+          ${v.status==='draft' ? `
+            <div class="field" style="margin-top:10px;"><textarea class="fbText" data-v="${v.id}" placeholder="ملاحظتك..."></textarea></div>
+            <div style="display:flex;gap:7px;">
+              <button class="btn sm approveBtn" data-v="${v.id}" style="flex:1;">اعتماد</button>
+              <button class="btn ghost sm rejectBtn" data-v="${v.id}" style="flex:1;color:var(--red-fg);">رفض</button>
+            </div>
+          ` : ''}
+        </div>
+      `).join('')
+    }
+  `;
+  document.getElementById('backBtn').onclick = renderSupervisorHome;
+  document.querySelectorAll('.approveBtn').forEach(b=> b.onclick = ()=> handleDecision(b.getAttribute('data-v'), true));
+  document.querySelectorAll('.rejectBtn').forEach(b=> b.onclick = ()=> handleDecision(b.getAttribute('data-v'), false));
+}
+
+async function handleDecision(versionId, approve){
+  const fbEl = document.querySelector(`.fbText[data-v="${versionId}"]`);
+  const fbText = fbEl ? fbEl.value.trim() : '';
+  if(!approve && !fbText){ toast('اكتب ملاحظة توضح سبب الرفض'); return; }
+  await updateDoc(doc(db,'versions',versionId), { status: approve?'approved':'rejected', reviewedAt: serverTimestamp() });
+  if(fbText){
+    await addDoc(collection(db,'feedback'), { versionId, authorId: currentUser.uid, text: fbText, createdAt: serverTimestamp() });
+  }
+  if(approve){
+    const r = selectedStudentRoom;
+    const sIdx = stageIdx(r.stage);
+    if(sIdx < STAGES.length-1){
+      const newStage = STAGES[sIdx+1].key;
+      await updateDoc(doc(db,'rooms',r.id), { stage: newStage });
+      selectedStudentRoom.stage = newStage;
+    }
+  }
+  toast(approve ? 'تم الاعتماد' : 'تم التسجيل');
+  renderSupervisorReview();
+}
+
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    currentUser = user;
+    const pSnap = await getDoc(doc(db,'users',user.uid));
+    if(pSnap.exists()){
+      profile = pSnap.data();
+      if(profile.role==='student') renderStudentHome();
+      else renderSupervisorHome();
+    } else {
+      contentEl.innerHTML = `<div class="empty">تعذّر تحميل الملف الشخصي</div>`;
+    }
+  } else {
+    currentUser = null; profile = null;
+    renderAuth();
+  }
+});
+</script>
+</body>
+</html>
