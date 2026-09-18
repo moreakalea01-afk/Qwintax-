@@ -170,6 +170,9 @@ function renderAuth(){
         }
       }
       toast('تم إنشاء الحساب بنجاح');
+      currentUser = cred.user;
+      profile = { name, email, role: authRole };
+      if(authRole==='student'){ await renderStudentHome(); } else { renderSupervisorHome(); }
     }catch(e){
       msgEl.textContent = translateError(e.code);
     }
